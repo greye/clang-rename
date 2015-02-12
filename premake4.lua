@@ -10,14 +10,14 @@ targetdir   (_WORKING_DIR)
 location    (_WORKING_DIR)
 
 configurations { "Debug", "Release" }
-    flags { "ExtraWarnings", "FatalWarnings", "NoRTTI" }
+    flags { "ExtraWarnings", "NoRTTI", "Symbols" }
 
 configuration "Release"
     defines { "NDEBUG" }
     flags { "Optimize" }
 
 configuration {"linux", "gmake"}
-    buildoptions { "-std=c++11", "-pedantic" }
+    buildoptions { "-std=c++11", "-pedantic", "-Wno-unused-parameter" }
     buildoptions { runcmd("llvm-config --cppflags") }
     includedirs { runcmd("llvm-config --includedir") }
     libdirs { runcmd("llvm-config --libdir") }
