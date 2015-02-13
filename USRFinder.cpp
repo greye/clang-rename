@@ -69,6 +69,55 @@ public:
                      Decl->getNameAsString().length());
   }
 
+  bool VisitTypeLoc(TypeLoc TL) {
+    const NamedDecl *Decl = nullptr;
+    switch(TL.getTypeLocClass()) {
+      // TODO case TypeLoc::ObjCObject:
+
+      case TypeLoc::InjectedClassName: {
+        if (auto TSTL = TL.getAs<InjectedClassNameTypeLoc>()) {
+          Decl = TSTL.getDecl();
+        }
+        break;
+      }
+
+      case TypeLoc::TemplateSpecialization: {
+        if (auto TSTL = TL.getAs<TemplateSpecializationTypeLoc>()) {
+          if (auto TT = dyn_cast<TemplateSpecializationType>(TL.getTypePtr())) {
+            if (auto TD = TT->getTemplateName().getAsTemplateDecl()) {
+              Decl = TD->getTemplatedDecl();
+            }
+          }
+        }
+        break;
+      }
+
+      case TypeLoc::Typedef: {
+        if (auto TDT = dyn_cast<TypedefType>(TL.getTypePtr())) {
+          Decl = TDT->getDecl();
+        }
+        break;
+      }
+
+      case TypeLoc::Builtin:
+      case TypeLoc::Enum:
+      case TypeLoc::Record:
+      case TypeLoc::ObjCInterface:
+      case TypeLoc::TemplateTypeParm: {
+        if (auto TT = dyn_cast<TagType>(TL.getTypePtr())) {
+          Decl  = TT->getDecl();
+        }
+        break;
+      }
+
+      default: break;
+    }
+    if (Decl) {
+        return setResult(Decl, TL.getBeginLoc(), TL.getEndLoc());
+    }
+    return true;
+  }
+
   // Other:
 
   const NamedDecl *getNamedDecl() {
