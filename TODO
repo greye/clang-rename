@@ -1,2 +1,6 @@
 - pick offset strictly from the first file specified OR
 - apply replacements to whole database
+
+- restrict type renaming to type declaration context
+- create dependency map for compilation database
+- on type rename use dependency map to process dependent sources
