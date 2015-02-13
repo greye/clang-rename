@@ -1,0 +1,2 @@
+- pick offset strictly from the first file specified OR
+- apply replacements to whole database

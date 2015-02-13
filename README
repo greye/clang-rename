@@ -1,0 +1,13 @@
+Source code has been ripped off original Clang source tree for personal use
+as standalone tool.
+
+Dependencies:
+    premake 4.4+ (CMake scripts has been imported directly, doesn't work atm)
+    Clang 3.5+
+
+Requires compile_commands.json database to work (support/jsondb.sh for fake
+manual generation or use something like BEAR[1]). Takes byte offset into
+file and updates given symbol with -new-name. Sample Vim function is in
+support/rename.vim.
+
+1. http://github.com/rizsotto/Bear
