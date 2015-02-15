@@ -37,7 +37,7 @@ $(BUILDDIR)/%.o: $(SRCDIR)/%.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(OBJECT) clang-rename
+	rm -f $(BUILDDIR)/*.o $(BUILDDIR)/clang-rename
 
 deps.mk: $(SOURCE)
 	$(CXX) $(SYSINC) $(CXXFLAGS) -MM -MT $(OBJECT) $^ > $@
