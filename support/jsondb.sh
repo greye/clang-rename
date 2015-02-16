@@ -3,19 +3,22 @@
 # fake compile commands database in json format
 
 CXX="g++"
-CPPFLAGS="$(llvm-config --cppflags)"
+#for dir in $($CXX -E -xc++ - -v < /dev/null 2>&1 | grep ^\ /usr | grep include)
+#do
+#    SYSINC="$SYSINC -isystem $dir"
+#done
+SYSINC="-isystem $(llvm-config-3.5 --includedir)"
 
-dbname="compile_commands.json"
-rm -f $dbname
-touch $dbname
-echo "[" >> $dbname
+CXXFLAGS="$(llvm-config --cxxflags)"
+
+echo "["
 for file in $@
 do
     path=$(realpath $file)
-    echo "{" >> $dbname
-    echo "  \"directory\": \"$(dirname $path)\"," >> $dbname
-    echo "  \"command\": \"$CXX -x c++ -std=c++11 $CPPFLAGS -c $path\"," >> $dbname
-    echo "  \"file\": \"$path\"" >> $dbname
-    echo "}," >> $dbname
+    echo "{
+  \"directory\": \"$(dirname $path)\",
+  \"command\": \"$CXX -c $SYSINC $CXXFLAGS $path\",
+  \"file\": \"$path\"
+},"
 done
-echo "]" >> $dbname
+echo "]"
