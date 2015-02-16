@@ -1,8 +1,10 @@
-#include <clang/Tooling/JSONCompilationDatabase.h>
+#include "DependencyDatabase.h"
+
 #include <clang/Tooling/CompilationDatabase.h>
 #include <clang/Tooling/CompilationDatabasePluginRegistry.h>
 #include <clang/Tooling/Tooling.h>
 #include <llvm/ADT/SmallString.h>
+#include <llvm/ADT/StringExtras.h>
 #include <llvm/Support/Path.h>
 #include <system_error>
 
@@ -104,13 +106,13 @@ std::vector<std::string> unescapeCommandLine(
   return parser.parse();
 }
 
-class JSONCompilationDatabasePlugin : public CompilationDatabasePlugin {
+class DependencyDatabasePlugin : public CompilationDatabasePlugin {
   CompilationDatabase *loadFromDirectory(StringRef Directory,
                                          std::string &ErrorMessage) override {
     SmallString<1024> JSONDatabasePath(Directory);
     llvm::sys::path::append(JSONDatabasePath, "compile_commands.json");
     std::unique_ptr<CompilationDatabase> Database(
-        JSONCompilationDatabase::loadFromFile(JSONDatabasePath, ErrorMessage));
+        DependencyDatabase::loadFromFile(JSONDatabasePath, ErrorMessage));
     if (!Database)
       return nullptr;
     return Database.release();
@@ -119,17 +121,28 @@ class JSONCompilationDatabasePlugin : public CompilationDatabasePlugin {
 
 } // end namespace
 
-// Register the JSONCompilationDatabasePlugin with the
+namespace llvm {
+  template<>
+  struct DenseMapInfo<StringRef> {
+    // This assumes that "" will never be a valid key.
+    static inline StringRef getEmptyKey() { return StringRef(""); }
+    static inline StringRef getTombstoneKey() { return StringRef(); }
+    static unsigned getHashValue(StringRef Val) { return HashString(Val); }
+    static bool isEqual(StringRef LHS, StringRef RHS) { return LHS == RHS; }
+  };
+}
+
+// Register the DependencyDatabasePlugin with the
 // CompilationDatabasePluginRegistry using this statically initialized variable.
-static CompilationDatabasePluginRegistry::Add<JSONCompilationDatabasePlugin>
+static CompilationDatabasePluginRegistry::Add<DependencyDatabasePlugin>
 X("json-compilation-database", "Reads JSON formatted compilation databases");
 
 // This anchor is used to force the linker to link in the generated object file
-// and thus register the JSONCompilationDatabasePlugin.
+// and thus register the DependencyDatabasePlugin.
 volatile int JSONAnchorSource = 0;
 
-JSONCompilationDatabase *
-JSONCompilationDatabase::loadFromFile(StringRef FilePath,
+DependencyDatabase *
+DependencyDatabase::loadFromFile(StringRef FilePath,
                                       std::string &ErrorMessage) {
   llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> DatabaseBuffer =
       llvm::MemoryBuffer::getFile(FilePath);
@@ -137,27 +150,15 @@ JSONCompilationDatabase::loadFromFile(StringRef FilePath,
     ErrorMessage = "Error while opening JSON database: " + Result.message();
     return nullptr;
   }
-  std::unique_ptr<JSONCompilationDatabase> Database(
-      new JSONCompilationDatabase(DatabaseBuffer->release()));
-  if (!Database->parse(ErrorMessage))
-    return nullptr;
-  return Database.release();
-}
-
-JSONCompilationDatabase *
-JSONCompilationDatabase::loadFromBuffer(StringRef DatabaseString,
-                                        std::string &ErrorMessage) {
-  std::unique_ptr<llvm::MemoryBuffer> DatabaseBuffer(
-      llvm::MemoryBuffer::getMemBuffer(DatabaseString));
-  std::unique_ptr<JSONCompilationDatabase> Database(
-      new JSONCompilationDatabase(DatabaseBuffer.release()));
+  std::unique_ptr<DependencyDatabase> Database(
+      new DependencyDatabase(DatabaseBuffer->release()));
   if (!Database->parse(ErrorMessage))
     return nullptr;
   return Database.release();
 }
 
 std::vector<CompileCommand>
-JSONCompilationDatabase::getCompileCommands(StringRef FilePath) const {
+DependencyDatabase::getCompileCommands(StringRef FilePath) const {
   SmallString<128> NativeFilePath;
   llvm::sys::path::native(FilePath, NativeFilePath);
 
@@ -176,7 +177,7 @@ JSONCompilationDatabase::getCompileCommands(StringRef FilePath) const {
 }
 
 std::vector<std::string>
-JSONCompilationDatabase::getAllFiles() const {
+DependencyDatabase::getAllFiles() const {
   std::vector<std::string> Result;
 
   llvm::StringMap< std::vector<CompileCommandRef> >::const_iterator
@@ -191,7 +192,7 @@ JSONCompilationDatabase::getAllFiles() const {
 }
 
 std::vector<CompileCommand>
-JSONCompilationDatabase::getAllCompileCommands() const {
+DependencyDatabase::getAllCompileCommands() const {
   std::vector<CompileCommand> Commands;
   for (llvm::StringMap< std::vector<CompileCommandRef> >::const_iterator
         CommandsRefI = IndexByFile.begin(), CommandsRefEnd = IndexByFile.end();
@@ -201,7 +202,7 @@ JSONCompilationDatabase::getAllCompileCommands() const {
   return Commands;
 }
 
-void JSONCompilationDatabase::getCommands(
+void DependencyDatabase::getCommands(
                                   ArrayRef<CompileCommandRef> CommandsRef,
                                   std::vector<CompileCommand> &Commands) const {
   for (int I = 0, E = CommandsRef.size(); I != E; ++I) {
@@ -230,7 +231,7 @@ getNativePath(llvm::yaml::ScalarNode *File, llvm::yaml::ScalarNode *Directory) {
   return NativeFilePath;
 }
 
-bool JSONCompilationDatabase::parse(std::string &ErrorMessage) {
+bool DependencyDatabase::parse(std::string &ErrorMessage) {
   llvm::yaml::document_iterator I = YAMLStream.begin();
   if (I == YAMLStream.end()) {
     ErrorMessage = "Error while parsing YAML.";
@@ -335,6 +336,3 @@ bool JSONCompilationDatabase::parse(std::string &ErrorMessage) {
   }
   return true;
 }
-
-} // end namespace tooling
-} // end namespace clang

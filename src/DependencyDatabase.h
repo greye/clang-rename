@@ -4,6 +4,7 @@
 #include <clang/Basic/LLVM.h>
 #include <clang/Tooling/CompilationDatabase.h>
 #include <clang/Tooling/FileMatchTrie.h>
+#include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/StringMap.h>
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Support/MemoryBuffer.h>
@@ -15,13 +16,16 @@
 
 class DependencyDatabase : public clang::tooling::CompilationDatabase {
 public:
+  static DependencyDatabase *
+  loadFromFile(llvm::StringRef FilePath, std::string &ErrorMessage);
+
   /// \brief Returns all compile comamnds in which the specified file was
   /// compiled.
   ///
   /// FIXME: Currently FilePath must be an absolute path inside the
   /// source directory which does not have symlinks resolved.
-  std::vector<CompileCommand>
-  getCompileCommands(StringRef FilePath) const override;
+  std::vector<clang::tooling::CompileCommand>
+  getCompileCommands(llvm::StringRef FilePath) const override;
 
   /// \brief Returns the list of all files available in the compilation database.
   ///
@@ -30,7 +34,8 @@ public:
 
   /// \brief Returns all compile commands for all the files in the compilation
   /// database.
-  std::vector<CompileCommand> getAllCompileCommands() const override;
+  std::vector<clang::tooling::CompileCommand>
+  getAllCompileCommands() const override;
 
 private:
   /// \brief Constructs a JSON compilation database on a memory buffer.
@@ -49,8 +54,8 @@ private:
                     llvm::yaml::ScalarNode*> CompileCommandRef;
 
   /// \brief Converts the given array of CompileCommandRefs to CompileCommands.
-  void getCommands(ArrayRef<CompileCommandRef> CommandsRef,
-                   std::vector<CompileCommand> &Commands) const;
+  void getCommands(llvm::ArrayRef<CompileCommandRef> CommandsRef,
+                   std::vector<clang::tooling::CompileCommand> &Commands) const;
 
 private:
   // Maps file paths to the compile command lines for that file.
@@ -59,7 +64,7 @@ private:
 
   llvm::DenseMap< llvm::StringRef, std::vector<llvm::StringRef> > Dependencies;
 
-  FileMatchTrie MatchTrie;
+  clang::tooling::FileMatchTrie MatchTrie;
 
   std::unique_ptr<llvm::MemoryBuffer> Database;
   llvm::yaml::Stream YAMLStream;
