@@ -67,9 +67,8 @@ private:
   clang::tooling::FileMatchTrie MatchTrie;
 
   std::unique_ptr<llvm::MemoryBuffer> Database;
-  llvm::yaml::Stream YAMLStream;
-
   llvm::SourceMgr SM;
+  llvm::yaml::Stream YAMLStream;
 };
 
 #endif
