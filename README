@@ -1,13 +1,21 @@
 Source code has been ripped off original Clang source tree for personal use
 as standalone tool.
 
+This fork implements custom compilation database to allow headers as tool
+target propagating replacements to all dependent translation units.
+
 Dependencies:
     premake 4.4+ (CMake scripts has been imported directly, doesn't work atm)
-    Clang 3.5+
+    Clang 3.5
 
-Requires compile_commands.json database to work (support/jsondb.sh for fake
-manual generation or use something like BEAR[1]). Takes byte offset into
-file and updates given symbol with -new-name. Sample Vim function is in
-support/rename.vim.
+Requires custom compile_filedeps.json database that is (non)convenient JSON
+compilation database with additional sequence per entry storing translation
+unit dependencies, e.g. headers. Assuming gcc-like compiler (for -MM
+option) one can generate such a database from compile_commands.json using
+script like support/db2deps.sh (requires GNU sed). compile_commands.json
+can be generated using CMake (if used as a build system), tools like
+BEAR[1] or be faked using custom scripts (see support/jsondb.sh).
+
+Sample Vim function is in support/rename.vim.
 
 1. http://github.com/rizsotto/Bear
