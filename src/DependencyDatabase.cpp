@@ -272,7 +272,7 @@ bool DependencyDatabase::parse(std::string &ErrorMessage) {
     llvm::yaml::ScalarNode *Directory = nullptr;
     llvm::yaml::ScalarNode *Command = nullptr;
     llvm::yaml::ScalarNode *File = nullptr;
-    llvm::yaml::SequenceNode *Deps = nullptr;
+    llvm::SmallVector<llvm::yaml::ScalarNode *, 8> Deps;
     for (llvm::yaml::MappingNode::iterator KVI = Object->begin(),
                                            KVE = Object->end();
          KVI != KVE; ++KVI) {
@@ -289,15 +289,26 @@ bool DependencyDatabase::parse(std::string &ErrorMessage) {
       }
 
       SmallString<8> KeyStorage;
-      if (auto *Node = dyn_cast<llvm::yaml::SequenceNode>(Value)) {
+      llvm::yaml::ScalarNode *ValueString = nullptr;
+
+      if (auto SeqNode = dyn_cast<llvm::yaml::SequenceNode>(Value)) {
         if (KeyString->getValue(KeyStorage) == "deps") {
-          Deps = Node;
+          for (auto DepsIt = SeqNode->begin(), DepsE = SeqNode->end();
+               DepsIt != DepsE;
+               ++DepsIt) {
+            auto *Node = dyn_cast<llvm::yaml::ScalarNode>(&*DepsIt);
+            if (!Node) {
+              ErrorMessage = "Expecting string values in dependency sequence.";
+              return false;
+            }
+            Deps.push_back(Node);
+          }
         } else {
           ErrorMessage = ("Unknown key: \"" +
                           KeyString->getRawValue() + "\"").str();
           return false;
         }
-      } else if (auto *ValueString = dyn_cast<llvm::yaml::ScalarNode>(Value)) {
+      } else if ((ValueString = dyn_cast<llvm::yaml::ScalarNode>(Value))) {
         if (KeyString->getValue(KeyStorage) == "directory") {
           Directory = ValueString;
         } else if (KeyString->getValue(KeyStorage) == "command") {
@@ -326,19 +337,14 @@ bool DependencyDatabase::parse(std::string &ErrorMessage) {
       ErrorMessage = "Missing key: \"directory\".";
       return false;
     }
-    if (!Deps) {
-      ErrorMessage = "Missing key: \"deps\".";
-      return false;
-    }
     SmallString<128> NativeFilePath = getNativePath(File, Directory);
     MatchTrie.insert(NativeFilePath.str());
 
     auto &tuEntry= IndexByFile.GetOrCreateValue(NativeFilePath);
     tuEntry.getValue().push_back(CompileCommandRef(Directory, Command));
 
-    for (auto it = Deps->begin(), end = Deps->end(); it != end; ++it) {
-      auto *DepNode = dyn_cast<llvm::yaml::ScalarNode>(&*it);
-      SmallString<128> DepPath = getNativePath(DepNode, Directory);;
+    for (auto it = Deps.begin(), end = Deps.end(); it != end; ++it) {
+      SmallString<128> DepPath = getNativePath(*it, Directory);;
 
       auto &DepEntry = ReverseDeps.GetOrCreateValue(DepPath);
       DepEntry.getValue().push_back(tuEntry.getKey());
