@@ -104,7 +104,7 @@ int main(int argc, const char **argv) {
   // Get the USRs.
   auto Files = OP.getSourcePathList();
   tooling::RefactoringTool Tool(OP.getCompilations(), Files);
-  rename::USRFindingAction USRAction(SymbolOffset);
+  rename::USRFindingAction USRAction(Files[0], SymbolOffset);
 
   // Find the USRs.
   Tool.run(tooling::newFrontendActionFactory(&USRAction).get());

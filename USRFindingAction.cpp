@@ -66,9 +66,12 @@ static std::vector<std::string> getAllConstructorUSRs(
 struct NamedDeclFindingConsumer : public ASTConsumer {
   void HandleTranslationUnit(ASTContext &Context) override {
     const auto &SourceMgr = Context.getSourceManager();
+    auto &FileMgr = SourceMgr.getFileManager();
+
+    clang::FileID FileID = SourceMgr.translateFile(FileMgr.getFile(FilePath));
     // The file we look for the USR in will always be the main source file.
-    const auto Point = SourceMgr.getLocForStartOfFile(
-        SourceMgr.getMainFileID()).getLocWithOffset(SymbolOffset);
+    const auto Point =
+        SourceMgr.getLocForStartOfFile(FileID).getLocWithOffset(SymbolOffset);
     if (!Point.isValid())
       return;
     const NamedDecl *FoundDecl = getNamedDeclAt(Context, Point);
@@ -99,6 +102,7 @@ struct NamedDeclFindingConsumer : public ASTConsumer {
   }
 
   unsigned SymbolOffset;
+  llvm::StringRef FilePath;
   std::string *SpellingName;
   std::vector<std::string> *USRs;
 };
@@ -108,7 +112,8 @@ USRFindingAction::newASTConsumer() {
   std::unique_ptr<NamedDeclFindingConsumer> Consumer(
       new NamedDeclFindingConsumer);
   SpellingName = "";
-  Consumer->SymbolOffset = SymbolOffset;
+  Consumer->SymbolOffset = this->SymbolOffset;
+  Consumer->FilePath = this->FilePath;
   Consumer->USRs = &USRs;
   Consumer->SpellingName = &SpellingName;
   return std::move(Consumer);

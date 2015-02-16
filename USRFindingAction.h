@@ -15,7 +15,8 @@
 #ifndef LLVM_CLANG_TOOLS_EXTRA_CLANG_RENAME_USR_FINDING_ACTION_H_
 #define LLVM_CLANG_TOOLS_EXTRA_CLANG_RENAME_USR_FINDING_ACTION_H_
 
-#include "clang/Frontend/FrontendAction.h"
+#include <clang/Frontend/FrontendAction.h>
+#include <llvm/ADT/StringRef.h>
 
 namespace clang {
 class ASTConsumer;
@@ -25,8 +26,10 @@ class NamedDecl;
 namespace rename {
 
 struct USRFindingAction {
-  USRFindingAction(unsigned Offset) : SymbolOffset(Offset) {
-  }
+  USRFindingAction(llvm::StringRef Path, unsigned Offset)
+    : SymbolOffset(Offset), FilePath(Path)
+  {}
+
   std::unique_ptr<ASTConsumer> newASTConsumer();
 
   // \brief get the spelling of the USR(s) as it would appear in source files.
@@ -40,6 +43,7 @@ struct USRFindingAction {
 
 private:
   unsigned SymbolOffset;
+  llvm::StringRef FilePath;
   std::string SpellingName;
   std::vector<std::string> USRs;
 };
