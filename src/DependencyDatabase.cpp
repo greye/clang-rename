@@ -145,7 +145,7 @@ namespace llvm {
 // CompilationDatabasePluginRegistry using this statically initialized variable.
 DependencyDatabase *
 DependencyDatabase::loadFromFile(StringRef FilePath,
-                                      std::string &ErrorMessage) {
+                                 std::string &ErrorMessage) {
   llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> DatabaseBuffer =
       llvm::MemoryBuffer::getFile(FilePath);
   if (std::error_code Result = DatabaseBuffer.getError()) {
@@ -167,15 +167,27 @@ DependencyDatabase::getCompileCommands(StringRef FilePath) const {
   std::string Error;
   llvm::raw_string_ostream ES(Error);
   StringRef Match = MatchTrie.findEquivalent(NativeFilePath.str(), ES);
-  if (Match.empty())
+  if (Match.empty()) {
     return std::vector<CompileCommand>();
-  llvm::StringMap< std::vector<CompileCommandRef> >::const_iterator
-    CommandsRefI = IndexByFile.find(Match);
-  if (CommandsRefI == IndexByFile.end())
-    return std::vector<CompileCommand>();
-  std::vector<CompileCommand> Commands;
-  getCommands(CommandsRefI->getValue(), Commands);
-  return Commands;
+  }
+
+  auto CmdsRefIt = IndexByFile.find(Match);
+  if (CmdsRefIt != IndexByFile.end()) {
+    std::vector<CompileCommand> Commands;
+    getCommands(CmdsRefIt->getValue(), Commands);
+    return Commands;
+  }
+
+  auto RDepsIt = ReverseDeps.find(Match);
+  if (RDepsIt != ReverseDeps.end()) {
+    std::vector<CompileCommand> Commands;
+    auto &RDeps = RDepsIt->getValue();
+    for (auto it = RDeps.begin(), end = RDeps.end(); it != end; ++it) {
+      getCommands(IndexByFile.find(*it)->getValue(), Commands);
+    }
+    return Commands;
+  }
+  return std::vector<CompileCommand>();
 }
 
 std::vector<std::string>
