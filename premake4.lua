@@ -30,7 +30,7 @@ platforms { "native", "x32", "x64" }
 project "clangRename"
     language "C++"
     kind "StaticLib"
-    files "*.cpp"
+    files { "*.cpp", "src/*.cpp" }
     
 project "clang-rename"
     includedirs "./"
