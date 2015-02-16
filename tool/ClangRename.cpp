@@ -15,6 +15,8 @@
 
 #include "../USRFindingAction.h"
 #include "../RenamingAction.h"
+#include "../src/DependencyDatabasePlugin.h"
+
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/Basic/FileManager.h"
@@ -86,6 +88,8 @@ clang-rename renames every occurrence of a symbol found at <offset> in\n\
 Otherwise, the results are written to stdout.\n";
 
 int main(int argc, const char **argv) {
+  clang::rename::registerDependencyDatabasePlugin();
+
   cl::SetVersionPrinter(PrintVersion);
   tooling::CommonOptionsParser OP(argc, argv, ClangRenameCategory, RenameUsage);
 

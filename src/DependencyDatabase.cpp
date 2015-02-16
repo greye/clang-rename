@@ -1,4 +1,5 @@
 #include "DependencyDatabase.h"
+#include "DependencyDatabasePlugin.h"
 
 #include <clang/Tooling/CompilationDatabase.h>
 #include <clang/Tooling/CompilationDatabasePluginRegistry.h>
@@ -107,19 +108,27 @@ std::vector<std::string> unescapeCommandLine(
 }
 
 class DependencyDatabasePlugin : public CompilationDatabasePlugin {
-  CompilationDatabase *loadFromDirectory(StringRef Directory,
-                                         std::string &ErrorMessage) override {
-    SmallString<1024> JSONDatabasePath(Directory);
-    llvm::sys::path::append(JSONDatabasePath, "compile_commands.json");
+  CompilationDatabase *
+  loadFromDirectory(llvm::StringRef Directory,
+                    std::string &ErrorMessage) override {
+    llvm::SmallString<1024> Path(Directory);
+    llvm::sys::path::append(Path, "compile_filedeps.json");
     std::unique_ptr<CompilationDatabase> Database(
-        DependencyDatabase::loadFromFile(JSONDatabasePath, ErrorMessage));
+        DependencyDatabase::loadFromFile(Path, ErrorMessage));
     if (!Database)
       return nullptr;
     return Database.release();
   }
 };
-
 } // end namespace
+
+void
+clang::rename::registerDependencyDatabasePlugin() {
+  static CompilationDatabasePluginRegistry::Add<DependencyDatabasePlugin>
+  RegisterDatabasePluginAction(
+      "json-dependency-database",
+      "Reads JSON formatted compilation databases with file dependencies");
+}
 
 namespace llvm {
   template<>
@@ -134,13 +143,6 @@ namespace llvm {
 
 // Register the DependencyDatabasePlugin with the
 // CompilationDatabasePluginRegistry using this statically initialized variable.
-static CompilationDatabasePluginRegistry::Add<DependencyDatabasePlugin>
-X("json-compilation-database", "Reads JSON formatted compilation databases");
-
-// This anchor is used to force the linker to link in the generated object file
-// and thus register the DependencyDatabasePlugin.
-volatile int JSONAnchorSource = 0;
-
 DependencyDatabase *
 DependencyDatabase::loadFromFile(StringRef FilePath,
                                       std::string &ErrorMessage) {
